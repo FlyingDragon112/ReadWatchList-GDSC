@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "URL Text Reader",
+  "version": "1.0",
+  "description": "Reads the current URL and extracts text content from the page",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "identity"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "<all_urls>"
+  ],
+  "oauth2": {
+    "client_id": "870923621419-87hdo39p6bljgukgo7ejtm8t6mnqh7eh.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "URL Text Reader"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ]
+}
