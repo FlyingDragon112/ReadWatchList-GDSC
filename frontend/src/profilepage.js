@@ -168,7 +168,7 @@ function Navbar({ email }) {
       <div style={{ fontWeight: 700, fontSize: "1.3rem", color: "#2a2a2a" }}>MyApp</div>
       <div style={navLinksStyle}>
         <a href="/ForYou" style={navLinkStyle}>Home</a>
-        <a href={email ? `/profile?email=${encodeURIComponent(email)}` : "/profile"} style={navLinkStyle}>Profile</a>
+        <a href={email ? `/profile?email=${encodeURIComponent(email)}` : "/profile"} style={navLinkStyle}>My Profile</a>
       </div>
     </nav>
   );
