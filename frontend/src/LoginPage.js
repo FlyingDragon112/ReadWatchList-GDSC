@@ -1,6 +1,11 @@
 import React from "react";
 
 function MainPage() {
+  React.useEffect(() => {
+    localStorage.clear();
+    console.log('localStorage after clear:', JSON.stringify(localStorage, null, 2));
+  }, []);
+
   const handleLogin = () => {
     // Redirect to your FastAPI backend's /login endpoint
     window.location.href = "http://localhost:8000/login";

@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 
 // Sidebar and card styles
 const containerStyle = {
@@ -162,19 +163,32 @@ function ProjectCard({ entry }) {
   );
 }
 
-function Navbar({ email }) {
+function Navbar() {
+  const loggedInEmail = localStorage.getItem("user_email");
   return (
     <nav style={navbarStyle}>
       <div style={{ fontWeight: 700, fontSize: "1.3rem", color: "#2a2a2a" }}>MyApp</div>
       <div style={navLinksStyle}>
         <a href="/ForYou" style={navLinkStyle}>Home</a>
-        <a href={email ? `/profile?email=${encodeURIComponent(email)}` : "/profile"} style={navLinkStyle}>My Profile</a>
+        <a href={loggedInEmail ? `/profile?email=${encodeURIComponent(loggedInEmail)}` : "/profile"} style={navLinkStyle}>My Profile</a>
       </div>
     </nav>
   );
 }
 
-function ProfilePage({ email }) {
+function ProfilePage() {
+  const location = useLocation();
+  React.useEffect(() => {
+    // Clear localStorage if on login page
+    if (location.pathname === "/login") {
+      localStorage.clear();
+    }
+    // Print localStorage for debugging
+    console.log('localStorage:', JSON.stringify(localStorage, null, 2));
+  }, [location.pathname]);
+
+  const params = new URLSearchParams(location.search);
+  const email = params.get("email");
   const [profile, setProfile] = React.useState(null);
   const [entries, setEntries] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
@@ -188,11 +202,11 @@ function ProfilePage({ email }) {
 
   React.useEffect(() => {
     if (email) {
-      // Only store email if it matches the logged-in user
-      const loggedInEmail = localStorage.getItem("user_email");
-      if (!loggedInEmail || loggedInEmail === email) {
-        localStorage.setItem("user_email", email);
+      // Set localStorage.user_email to the current email for debugging
+      if (localStorage.length === 0){
+          localStorage.setItem('user_email', email);
       }
+      
       setLoading(true);
       fetch(`http://localhost:8000/profile?email=${encodeURIComponent(email)}`)
         .then(res => res.json())
@@ -289,7 +303,7 @@ function ProfilePage({ email }) {
 
   return (
     <>
-      <Navbar email={email} />
+      <Navbar />
       <div style={containerStyle}>
         {/* First-time modal */}
         {showFirstTimeModal && (
@@ -352,13 +366,13 @@ function ProfilePage({ email }) {
           {profile && (
             <>
               <img
-                src={profile.picture}
+                src={profile.picture || "https://via.placeholder.com/100x100?text=No+Image"}
                 alt="Profile"
                 style={profileImgStyle}
               />
               {editing ? (
                 <>
-                  <input
+                   <input
                     type="text"
                     name="name"
                     value={editFields.name}

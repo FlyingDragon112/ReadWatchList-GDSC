@@ -1,30 +1,37 @@
 import os
 from authlib.integrations.starlette_client import OAuth
-from fastapi import FastAPI, Request, Query, Depends, Body, status
+from fastapi import FastAPI, Request, Query, Depends, Body, status, HTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
-
-from sqlalchemy import create_engine, text, Column, String
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-
+from pydantic import BaseModel
+from sqlalchemy import create_engine, text, Column, String, Text, DateTime, Integer, func
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 from dotenv import load_dotenv
+import requests
+
 load_dotenv()
 
-app = FastAPI()
+# --- FastAPI app and Middleware ---
+app = FastAPI(title="Unified Text Storage API", version="1.0.0")
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "super-seecert"))
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "chrome-extension://mcimihlmagolajnkpfbhmjmphehgogkn",  # Chrome extension
+        "http://localhost:3000"  # React frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-client="870923621419-4ss7pa1cfg0f9rvqq02en2ssqm6pratd.apps.googleusercontent.com"
-key="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"
+
+# --- Google OAuth Setup ---
+client = os.getenv("GOOGLE_CLIENT_ID", "870923621419-4ss7pa1cfg0f9rvqq02en2ssqm6pratd.apps.googleusercontent.com")
+key = os.getenv("GOOGLE_CLIENT_SECRET", "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")
 oauth = OAuth()
 oauth.register(
     name="google",
@@ -37,8 +44,13 @@ oauth.register(
     },
 )
 
+# --- Database Setup ---
+SQLALCHEMY_DATABASE_URL = "sqlite:///../databases/text_storage.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# --- Models ---
 class UserProfile(Base):
     __tablename__ = "user_profiles"
     email = Column(String, primary_key=True)
@@ -46,18 +58,56 @@ class UserProfile(Base):
     location = Column(String)
     role = Column(String)
 
-# Create the table if it doesn't exist
-engine = create_engine("sqlite:///../databases/text_storage.db", connect_args={"check_same_thread": False})
+class TextEntry(Base):
+    __tablename__ = "text_entries"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, primary_key=False)
+    text = Column(Text, nullable=False)
+    date = Column(DateTime, default=func.now())
+    url = Column(String, nullable=False)
+
 Base.metadata.create_all(bind=engine)
 
+# --- Pydantic Models ---
+class TextEntryCreate(BaseModel):
+    url: str
+    text: str
+
+class TextEntryResponse(BaseModel):
+    email: str
+    text: str
+    date: datetime
+    url: str
+    class Config:
+        from_attributes = True
+
+# --- Security ---
+security = HTTPBearer()
+
+def verify_google_token(token: str) -> str:
+    """Verify Google OAuth token and return email"""
+    try:
+        response = requests.get(f"https://www.googleapis.com/oauth2/v1/userinfo?access_token={token}")
+        if response.status_code == 200:
+            user_info = response.json()
+            return user_info.get("email")
+        else:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Token verification failed: {str(e)}")
+
+def get_current_user_email(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+    token = credentials.credentials
+    return verify_google_token(token)
+
+# --- Routes ---
 @app.get("/")
 async def home():
-    return {"msg": "Hello world"}
+    return {"msg": "Unified Text Storage API is running"}
 
 @app.get("/login")
 async def login(request: Request):
     try:
-        # Use localhost consistently for redirect URI
         redirect_uri = "http://localhost:8000/auth/callback"
         return await oauth.google.authorize_redirect(request, redirect_uri)
     except Exception as e:
@@ -69,41 +119,59 @@ async def auth_callback(request: Request):
         token = await oauth.google.authorize_access_token(request)
         try:
             user = await oauth.google.parse_id_token(request, token)
-        except Exception as e:
+        except Exception:
             resp = await oauth.google.get("https://openidconnect.googleapis.com/v1/userinfo", token=token)
             user = resp.json()
         email = user.get("email")
         name = user.get("name")
         picture = user.get("picture")
-
-        # Save/Check in DB
-        #await get_or_create_user(email, name, picture)
-        # Use localhost for frontend redirect as well
         frontend_url = f"http://localhost:3000/profile?email={email}"
         return RedirectResponse(frontend_url)
-    
     except Exception as e:
         return {"error": f"Auth callback error: {str(e)}"}
 
 @app.get("/api/check-url")
-async def check_url(url: str):
-    return {"checked_url": url}
+async def check_url_exists(
+    url: str = Query(...),
+    db: Session = Depends(lambda: SessionLocal()),
+    user_email: str = Depends(get_current_user_email)
+):
+    exists = db.query(TextEntry).filter(TextEntry.url == url, TextEntry.email == user_email).first()
+    return {"exists": exists is not None}
 
-@app.post("/api/store-text")
-async def store_text(request: Request):
-    data = await request.json()
-    return {"status": "success", "data": data}
+@app.post("/api/store-text", response_model=TextEntryResponse)
+async def store_text(
+    text_entry: TextEntryCreate,
+    db: Session = Depends(lambda: SessionLocal()),
+    user_email: str = Depends(get_current_user_email)
+):
+    # Block localhost URLs
+    if "localhost" in text_entry.url or "127.0.0.1" in text_entry.url:
+        raise HTTPException(status_code=400, detail="Storing localhost URLs is not allowed.")
+    # Optionally import and use summarizer if available
+    try:
+        from summarizer import get_summary
+        summary = get_summary(text_entry.text)
+    except Exception:
+        summary = text_entry.text
+    db_entry = TextEntry(
+        email=user_email,
+        text=summary,
+        url=text_entry.url,
+        date=datetime.utcnow()
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
 
 @app.get("/profile")
 async def get_profile_data(request: Request):
     email = request.query_params.get("email")
     if not email:
         return {"error": "Email not provided"}
-    engine = create_engine("sqlite:///../databases/text_storage.db", connect_args={"check_same_thread": False})
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db: Session = SessionLocal()
     try:
-        # Check user profile
         user_profile = db.execute(text("SELECT * FROM user_profiles WHERE email = :email"), {"email": email}).fetchone()
         profile_data = None
         if user_profile:
@@ -123,11 +191,8 @@ async def update_profile(request: Request):
     role = data.get("role")
     if not (email and name and location and role):
         return JSONResponse({"error": "Missing fields"}, status_code=status.HTTP_400_BAD_REQUEST)
-    engine = create_engine("sqlite:///../databases/text_storage.db", connect_args={"check_same_thread": False})
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db: Session = SessionLocal()
     try:
-        # Upsert user profile
         existing = db.execute(text("SELECT * FROM user_profiles WHERE email = :email"), {"email": email}).fetchone()
         if existing:
             db.execute(text("UPDATE user_profiles SET name = :name, location = :location, role = :role WHERE email = :email"),
@@ -139,3 +204,21 @@ async def update_profile(request: Request):
         return {"success": True}
     finally:
         db.close()
+
+@app.get("/ForYou")
+async def get_recent_tweets(request: Request):
+    db: Session = SessionLocal()
+    try:
+        query = '''select * from text_entries as te
+        join user_profiles as up
+        where up.email = te.email
+        order by date desc;'''
+        result = db.execute(text(query)).fetchall()
+        data = [dict(row._mapping) for row in result]
+        return {"entries": data}
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
