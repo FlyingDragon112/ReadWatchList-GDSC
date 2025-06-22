@@ -9,6 +9,7 @@ const containerStyle = {
   fontFamily: "sans-serif",
   minHeight: "100vh",
   padding: "2rem 0",
+  background: "linear-gradient(135deg, #1e3c72, #2a5298)", // match LoginPage
 };
 
 const sidebarStyle = {
@@ -18,7 +19,7 @@ const sidebarStyle = {
   borderRadius: "20px",
   marginRight: "3rem",
   textAlign: "center",
-  minHeight: "500px",
+  maxHeight: "550px",
   boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
   display: "flex",
   flexDirection: "column",
@@ -62,6 +63,7 @@ const headingStyle = {
   fontSize: "2rem",
   fontWeight: 600,
   marginBottom: "2rem",
+  color: 'white'
 };
 
 const cardListStyle = {
@@ -77,10 +79,10 @@ const cardStyle = {
   maxWidth: "1500px",       // Maximum width for the card
   minHeight: "60px",
   maxHeigh: "100px",      // Minimum height for the card
-  background: "#fff",
-  borderRadius: "20px",
-  boxShadow: "0 2px 16px rgba(0,0,0,0.07)",
-  padding: "2rem",
+  background: "#f0f4f8", // updated background color
+  borderRadius: "16px",   // updated border radius
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)", // updated box shadow
+  padding: "24px",        // updated padding
   display: "flex",
   alignItems: "flex-start",
   gap: "1.5rem",
@@ -150,7 +152,7 @@ function ProjectCard({ entry }) {
     <div style={cardStyle}>
       {/* Placeholder image or entry.image if available */}
       <img
-        src={entry.image || "https://via.placeholder.com/100x100?text=No+Image"}
+        src={entry.image && entry.image !== '' ? entry.image : "https://via.placeholder.com/100x100?text=No+Image"}
         alt=""
         style={cardImgStyle}
       />
@@ -353,7 +355,18 @@ function ProfilePage() {
               />
               <button
                 onClick={handleFirstTimeSave}
-                style={{ marginTop: "1rem", padding: "0.5rem 1.5rem" }}
+                style={{
+                  marginTop: "1rem",
+                  padding: "0.7rem 1.5rem",
+                  background: "#27ae60",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  marginBottom: "0.5rem"
+                }}
                 disabled={!editFields.name || !editFields.role || !editFields.location}
               >
                 Save
@@ -393,7 +406,18 @@ function ProfilePage() {
                     onChange={handleChange}
                     style={{ ...profileInfoStyle, width: "90%", margin: "0.5rem 0" }}
                   />
-                  <button onClick={handleSave} style={{ marginTop: "1rem" }}>
+                  <button onClick={handleSave} style={{
+                    marginTop: "1rem",
+                    padding: "0.7rem 1.5rem",
+                    background: "#27ae60",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    marginBottom: "0.5rem"
+                  }}>
                     Save
                   </button>
                 </>
@@ -409,11 +433,44 @@ function ProfilePage() {
                       <b>Location:</b> {profile.location || "India"}
                     </div>
                   </div>
-                  <button onClick={handleEdit} style={{ marginTop: "1.5rem" }}>
+                  <button onClick={handleEdit} style={{
+                    marginTop: "1.5rem",
+                    padding: "0.7rem 1.5rem",
+                    background: "#fff",
+                    color: "#222",
+                    border: "1.5px solid #27ae60",
+                    borderRadius: "8px",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    marginBottom: "0.5rem",
+                    transition: "background 0.2s, color 0.2s, border 0.2s"
+                  }}>
                     Edit
                   </button>
                 </>
               )}
+              {/* Logout Button */}
+              <button
+                style={{
+                  marginTop: "auto",
+                  background: "#e74c3c",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "0.7rem 1.5rem",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  marginBottom: "0.5rem"
+                }}
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.href = "/login";
+                }}
+              >
+                Logout
+              </button>
             </>
           )}
         </div>
