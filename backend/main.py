@@ -139,6 +139,16 @@ async def check_url_exists(
     exists = db.query(TextEntry).filter(TextEntry.url == url, TextEntry.email == user_email).first()
     return {"exists": exists is not None}
 
+def get_yt_data(vid_id):
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    ytt_api = YouTubeTranscriptApi()
+    strings = ytt_api.fetch(vid_id,languages=['en'])
+    data = ""
+    for entry in strings:
+        data += entry.text
+    return data
+
 @app.post("/api/store-text", response_model=TextEntryResponse)
 async def store_text(
     text_entry: TextEntryCreate,
@@ -148,7 +158,10 @@ async def store_text(
     # Block localhost URLs
     if "localhost" in text_entry.url or "127.0.0.1" in text_entry.url:
         raise HTTPException(status_code=400, detail="Storing localhost URLs is not allowed.")
-    # Optionally import and use summarizer if available
+    if "youtube" in text_entry.url:
+        id = text_entry.url.split("v=")[-1]
+        text_entry.text = get_yt_data(id)
+
     try:
         from summarizer import get_summary
         summary = get_summary(text_entry.text)
