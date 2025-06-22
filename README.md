@@ -2,6 +2,7 @@
 
 This repository contains a full-stack application for summarizing articles using advanced NLP and LLM models. It includes a Python backend, a React frontend, and a Chrome extension for easy access.
 
+Demo Videos Here : https://drive.google.com/drive/folders/1Sfh1kRe-JBuFZ3TLi4DLCahKW5rS6noM?usp=sharing
 ## Features
 - **Article Summarization:** Uses spaCy and a local Llama-based LLM to generate concise summaries.
 - **Key Sentence Extraction:** Identifies and prioritizes the most important sentences in the input text.
