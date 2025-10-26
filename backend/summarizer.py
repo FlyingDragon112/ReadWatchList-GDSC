@@ -4,7 +4,7 @@ import spacy
 from collections import Counter
 from llama_cpp import Llama
 
-login("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")
+login("")
 model_path = hf_hub_download(
     repo_id="tensorblock/phi-1_5-GGUF",
     filename="phi-1_5-Q4_K_M.gguf",
