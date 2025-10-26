@@ -30,8 +30,8 @@ app.add_middleware(
 )
 
 # --- Google OAuth Setup ---
-client = os.getenv("GOOGLE_CLIENT_ID", "870923621419-4ss7pa1cfg0f9rvqq02en2ssqm6pratd.apps.googleusercontent.com")
-key = os.getenv("GOOGLE_CLIENT_SECRET", "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")
+client = os.getenv("GOOGLE_CLIENT_ID", "")
+key = os.getenv("GOOGLE_CLIENT_SECRET", "")
 oauth = OAuth()
 oauth.register(
     name="google",
